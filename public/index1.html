@@ -1,0 +1,516 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <title>Driving Directions and Weather - Trip Planner - Weather Along Your Route</title>
+
+
+    <script type="text/javascript" src="http://vortex.accuweather.com/adc2010/javascripts/lib.min-20120412.js"></script>
+    <script type="text/javascript" src="http://vortex.accuweather.com/adc2010/javascripts/site.min-20120412.js"></script>
+    <link rel="stylesheet" href="http://vortex.accuweather.com/adc2010/stylesheets/site.min-20120412.css" type="text/css" media="all" charset="utf-8" />
+    <link rel="stylesheet" href="http://vortex.accuweather.com/adc2010/stylesheets/icons/backgrounds.min-20120412.css" type="text/css" media="all" charset="utf-8" />
+
+    <link rel="stylesheet" href="http://vortex.accuweather.com/adc2010/stylesheets/pages/interests.min-20120202.css" type="text/css" media="all" charset="utf-8" />
+    <link rel="stylesheet" href="http://vortex.accuweather.com/adc2010/stylesheets/icons/hourly-interest.min-20101109.css" type="text/css" media="all" charset="utf-8" />
+
+    <!--<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false&language=en&region=US"></script>-->
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?libraries=places&key=AIzaSyDwrHGHKWUjDvdcI5-mLBdqDP9gk1L_XeI"></script>
+    <script type="text/javascript" src="http://vortex.accuweather.com/adc2004/common/javascript/googlev3_driving_markers.js"></script>
+    <script type="text/javascript" src="http://vortex.accuweather.com/adc2004/common/javascript/google-infobox.js"></script>
+
+
+    <script type="text/javascript">
+        var map;
+        var directionsService;
+        var directionsDisplay;
+        var rtDistance = 0; //running total of distance
+        var rtDuration = 0; //running total of duration
+        var markers = new Array();
+
+        var ib = new InfoBox();
+
+        function getWeather(data) {
+            var dataArray = data[0].markers;
+            console.log(dataArray);
+            var thisLat, thisLon, nextLat, nextLon, mSlope;
+            var markerDirection = "m";  // marker pointer direction (can be l-left, m-middle, or r-right)
+            for (var i = 0; i < dataArray.length; i++) {
+                markerDirection = "m";
+                thisLat = parseFloat(dataArray[i].lt);
+                thisLon = parseFloat(dataArray[i].ln);
+                if ((i + 1) < dataArray.length) {
+                    nextLat = parseFloat(dataArray[i + 1].lt);
+                    nextLon = parseFloat(dataArray[i + 1].ln);
+                    if (i == 0)
+                    {
+                        markerDirection = (thisLon <= parseFloat(dataArray[dataArray.length - 1].ln)) ? "r" : "l"; // leaving from
+                    }
+                    else if (thisLon - nextLon != 0)
+                    {
+                        mSlope = (nextLat - thisLat) / (nextLon - thisLon);
+                        if (mSlope < -0.5) { markerDirection = "l"; }
+                        if (mSlope > 0.5) { markerDirection = "r"; }
+                        if (Math.abs(mSlope) > 2) {
+                            markerDirection = (i % 2 == 0) ? "l" : "r";
+                        }
+                    }
+                }
+                else {
+                    nextLat = parseFloat(dataArray[i-1].lt);
+                    nextLon = parseFloat(dataArray[i-1].ln);
+                    if (thisLon - nextLon != 0)
+                    {
+                        mSlope = (nextLat - thisLat) / (nextLon - thisLon);
+                        if (mSlope < -0.5) { markerDirection = "l"; }
+                        if (mSlope > 0.5) { markerDirection = "r"; }
+                        if (Math.abs(mSlope) > 2) {
+                            markerDirection = (i % 2 == 0) ? "l" : "r";
+                        }
+                    }
+                }
+                markers[i] = new PaddleMarkerObj(thisLat, thisLon, dataArray[i].t1, dataArray[i].i1);
+                markers[i].Location = unescape(dataArray[i].nm);
+                markers[i].Date = new Date(dataArray[i].dt);
+                markers[i].TimeZoneAbbr = dataArray[i].tz;
+                var marker = createPaddleMarker(map, markers[i], markerDirection);
+            }
+            document.getElementById("wxinfoloading").innerHTML = "";
+        }
+
+        function initialize() {
+
+            var mapOptions = {
+                zoom: 3,
+                center: new google.maps.LatLng(40, -94),
+                mapTypeControl: true,
+                mapTypeControlOptions: { style: google.maps.MapTypeControlStyle.DROPDOWN_MENU },
+                navigationControl: true,
+                navigationControlOptions: { style: google.maps.NavigationControlStyle.ZOOM_PAN },
+                mapTypeId: google.maps.MapTypeId.HYBRID
+            }
+            // Initialize Google Map
+            map = new google.maps.Map(document.getElementById("gmap"), mapOptions);
+            directionsService = new google.maps.DirectionsService();
+            directionsDisplay = new google.maps.DirectionsRenderer();
+            directionsDisplay.setMap(map);
+            directionsDisplay.setPanel(document.getElementById("directions-list"));
+
+            google.maps.event.addListener(map, 'click', function () {
+                ib.close();
+            });
+        }
+        function getDirections() {
+            var start, end;
+            ib.close();
+            start = document.directions["in-leaving"].value;
+            end = document.directions["in-going"].value;
+            if (start == "" || start == "Leaving from..." || end == "" || end == "Going to...") {
+                alert("Please enter your location and destination.");
+                return false;
+            }
+
+            var currentHour = 17;
+            var departHour = $('span#leaving').html();
+            departHour = departHour.replace("@", "");
+            if (departHour.indexOf("am") > -1) {
+                departHour = departHour.replace("am","");
+                departHour = parseInt(departHour);
+                if (departHour == 12) { departHour = 0; }        }
+            else {
+                departHour = departHour.replace("pm","");
+                departHour = parseInt(departHour);
+                departHour += 12;
+                if (departHour > 23) { departHour = 12; }
+            }
+            if (departHour < currentHour) {
+                departHour += 24;
+            }
+
+            rtDistance = 0; //running total of distance
+            rtDuration = 0; //running total of duration
+            document.getElementById("wxinfoloading").innerHTML = "<div style=\"background:#9cd8f9; padding:25px; color:#FFF; font-weight:bold; border-radius:10px; -moz-border-radius:10px; -webkit-border-radius:10px; box-shadow:2px 2px 5px #000; -moz-box-shadow:2px 2px 5px #000; -webkit-box-shadow:2px 2px 5px #000; text-shadow:1px 1px 3px #000;\">Retrieving Directions...</div>";
+            document.getElementById("directions-list").innerHTML = "";
+            $('#directions-panel').show();
+            document.getElementById("wxinfo").innerHTML = "";
+
+            var request = {
+                origin: start,
+                destination: end,
+                travelMode: google.maps.DirectionsTravelMode.DRIVING
+            };
+
+            // clear map
+            hidePaddleMarkers();
+
+            directionsService.route(request, function (response, status) {
+                if (status == google.maps.DirectionsStatus.OK) {
+                    document.getElementById("wxinfoloading").innerHTML = "<div style=\"background:#9cd8f9; padding:25px; color:#FFF; font-weight:bold; border-radius:10px; -moz-border-radius:10px; -webkit-border-radius:10px; box-shadow:2px 2px 5px #000; -moz-box-shadow:2px 2px 5px #000; -webkit-box-shadow:2px 2px 5px #000; text-shadow:1px 1px 3px #000;\">Loading Weather...</div>";
+                    directionsDisplay.setDirections(response);
+                    var numRoutes = response.routes.length;
+
+                    var route = response.routes[0];
+                    var verts = route.overview_path.length;
+                    var path = route.overview_path;
+
+                    for (var i = 0; i < route.legs.length; i++) {
+                        rtDuration += route.legs[i].duration.value; // seconds
+                    }
+
+                    var pathVertsPerHour = Math.round((verts / rtDuration) * 3600);
+                    if (pathVertsPerHour > 0)
+                    {
+                        var pathHours = (Math.round(rtDuration / 3600));
+                        var pathMarkerCount = 0;
+                        var mURL = "http://drivingwx.accu-weather.com/widget/drivingwx/weather-data.asp?metric=0&locs=";
+                        var hrCutoff = 24;
+                        for (var v = 0; v < verts; v += pathVertsPerHour) {
+                            if (pathMarkerCount == pathHours) {
+                                // Find distance between this and final destination point
+                                // d = sqrt( (x2-x1)^2 + (y2-y1)^2 )
+                                var distance = Math.sqrt(Math.pow(path[v].lng() - path[verts - 1].lng(), 2) + Math.pow(path[v].lat() - path[verts - 1].lat(), 2));
+                                if (distance < 0.2) {
+                                    continue;
+                                }
+                            }
+                            if (v > 0) { mURL += "|"; }
+                            mURL += (departHour+pathMarkerCount) + "," + roundToDecimal(path[v].lat(), 3) + "," + roundToDecimal(path[v].lng(), 3);
+                            pathMarkerCount++;
+                            if (pathMarkerCount == hrCutoff) {
+                                break;
+                            }
+                        }
+                        // add destination point
+                        if (pathMarkerCount < hrCutoff) {
+                            mURL += "|" + (departHour+pathMarkerCount) + "," + roundToDecimal(path[verts - 1].lat(), 3) + "," + roundToDecimal(path[verts - 1].lng(), 3);
+                        }
+
+                        $.ajax({
+                            url: mURL,
+                            dataType: "jsonp",
+                            timeout: 2000,
+                            jsonpCallback: "getWeather",
+                            error: function(data) {
+                                alert("Sorry! We are not able to get weather information for the route you selected.");
+                                document.getElementById("wxinfoloading").innerHTML = "";
+                            },
+                            statusCode: {
+                                408: function() {
+                                    alert('Sorry! The request took took long. Press \"GO\" to try again.');
+                                }
+                            }
+                        });
+                        //alert(mURL);
+                    }
+                    else {
+                        alert("Sorry! We are not able to get weather information for the route you selected.");
+                        document.getElementById("wxinfoloading").innerHTML = "";
+                    }
+                    return false;
+                }
+                else
+                {
+                    alert("Sorry! We are not able to get directions for the destinations you selected.");
+                    document.getElementById("wxinfoloading").innerHTML = "";
+                    return false;
+                }
+                return false;
+            });
+
+        }
+
+        function roundToDecimal(value, decimals) {
+            var rfactor = Math.pow(10, decimals);
+            return Math.round(value * rfactor) / rfactor;
+        }
+        function pad(number, length) {
+            var str = "" + number;
+            while (str.length < length) {
+                str = "0" + str;
+            }
+            return str;
+        }
+
+
+        $('.lvt').live('click',function(){
+            $('#leaving').html('@' + $(this).html());
+        });
+
+
+        $(document).ready(function () {
+            $('.btr-time').revealMenuHover({ classShown: 'btr-active', affix: { offset: [0, -1]} });
+            //$('.btr-time').revealMenuHover({ classShown: 'btr-active', affix: { offset: [0, -1], to:'w', from:'w'} });
+            //adcMap.onLoad();
+            initialize();
+        });
+
+    </script>
+    <style type="text/css">
+        #directions-panel { display:none; }
+        #travel-map-image-today{background:url(http://sirocco.accuweather.com/adc_images2/english/forecast/travel/400x300/us__todtravel.gif) -40px -70px no-repeat}
+        #travel-map-image-tomorrow{background:url(http://sirocco.accuweather.com/adc_images2/english/forecast/travel/400x300/us__tomtravel.gif) -40px -70px no-repeat}
+        #map-image-flight-delays{background:url(http://sirocco.accuweather.com/adc_images2/english/forecast/flight/400x300/us__todflightdelay.gif) -40px -70px no-repeat}
+        #gmap{width:612px;height:450px;}
+        .mini-feed li {cursor:auto;}
+        .mini-feed ul li .bg h3 a.hover {text-decoration: none;color: #ff0000;}
+        .business ul li{margin:12px 5px 0 0}
+        #in-going.hinted,#in-leaving.hinted  {
+            color: #777;
+        }
+        div.form-wrap {
+            background:transparent url(http://vortex.accuweather.com/adc2010/images/directions-header-bg.png) -8px 0 no-repeat;
+            width:612px;
+            height:59px;
+            margin:0px auto;
+        }
+        .form-wrap h2 {
+            /*override base*/
+
+            padding-left: 5px;
+            line-height: 50px;
+            margin-right: 0px;
+            background-repeat: no-repeat;
+
+            background:transparent;
+            width:196px;
+            color:#01507b;
+            display:inline-block;
+            float:left;
+        }
+        div.form-wrap input.field {
+            background:#FFF;
+            width:124px;
+            height:25px;
+            padding:5px;
+            -moz-border-radius:5px 0 0 5px;
+            -webkit-border-radius:5px 0 0 5px;
+            -o-border-radius:5px 0 0 5px;
+            border-radius:5px 0 0 5px;
+            -webkit-box-shadow:inset 0px 1px 5px #000;
+            -moz-box-shadow:inset 0px 1px 5px #000;
+            -o-box-shadow:inset 0px 1px 5px #000;
+            box-shadow:inset 0px 1px 5px #000;
+            float:left;
+            margin:12px 0 0 0;
+            border:none;
+            font-size:15px;
+            color:#333;
+        }
+        div.form-wrap input.field.going {
+            -moz-border-radius:5px;
+            -webkit-border-radius:5px;
+            -o-border-radius:5px;
+            border-radius:5px;
+            margin-left:5px;
+        }
+        div.form-wrap #selector {
+            background:transparent url(http://vortex.accuweather.com/adc2010/images/directions-select-bg.png) 0 0 no-repeat;
+            width:85px;
+            height:39px;
+            float:left;
+            margin:11px 0 0 0;
+        }
+        div.form-wrap #selector:hover {
+            cursor:pointer;
+        }
+        div.form-wrap #selector p {
+            padding:11px 0 0 5px;
+            color:#fff;
+        }
+        div.form-wrap .btn {
+            background: transparent url(http://vortex.accuweather.com/adc2010/images/directions-button-bg.png) no-repeat;
+            width:50px;
+            height:39px;
+            float:left;
+            margin:11px 0 0 0;
+            border:none;
+            background-position:left;
+        }
+        div.form-wrap .btn:hover {
+            background: transparent url(http://vortex.accuweather.com/adc2010/images/directions-button-bg.png);
+            background-position:right;
+            cursor:pointer;
+        }
+        div.form-wrap .btn p {
+            color:#FFF;
+            font-weight:bold;
+        }
+
+        table.adp-placemark { background:#9cd8f9; color:#01507b; font-weight:bold; }
+        table.adp-placemark img{  padding:5px; }
+        td.adp-substep, div.adp-summary { padding:10px; line-height:25px; }
+        div.adp-summary { margin-left:40px; }
+        .infoWin { background:#9cd8f9; border-radius: 5px; -moz-border-radius: 5px; -webkit-border-radius: 5px; padding:10px; box-shadow:inset 1px 1px 3px #444; -moz-box-shadow:inset 1px 1px 3px #444; -webkit-box-shadow:inset 1px 1px 3px #444; cursor: default;}
+    </style>
+
+</head>
+<body id="interests">
+
+<div id="wrap" class="h-su">
+
+    <div id="wrap-content">
+        <div id="content">
+            <div class="column-1 clearfix">
+                <div class="travel-content">
+                    <div class="panel-map">
+                        <div class="panel-head-tabs-rt">
+                            <div class="panel-head-tabs-lt">
+                                <ul class="panel-tab-buttons">
+
+                                    <li class="first current"><a href="/en/us/travel-weather"><span>Road Trip Planner</span></a><div class="nub"></div></li>
+                                    <script>$('body#interests .column-1').css('padding-top','12px');</script>
+
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="panel-map-body-lt">
+                            <div class="panel-map-body-rt">
+                                <div class="panel-body" style="position:relative;">
+
+                                    <!--<h2 class="business">
+                                      <ul class="g" style="display:inline;">
+                                        <li><a class="btr btr-select { el: '#menu-times' }"><span id="leaving">@10am</span></a></li>
+                                      </ul>Title</h2>-->
+                                    <div class="form-wrap">
+                                        <h2>Enter trip details:</h2>
+                                        <form action="#" name="directions" id="directions" onsubmit="return false;" style="position:relative;">
+                                            <input type="text" id="in-leaving" name="in-leaving" class="field text hint { help: 'Leaving from...',className:'hinted'}" />
+                                            <div id="selector" class="btr-time { el: '#menu-times' }">
+                                                <p class="time"><span id="leaving">@5pm</span></p>
+                                            </div>
+                                            <input type="text" id="in-going" name="in-going" class="field going text hint { help: 'Going to...',className:'hinted'}" />
+                                            <button class="btn" onclick="return getDirections();">
+                                                <p>GO</p>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="gmap" id="gmap"></div>
+                                    <!-- /.gmap -->
+
+                                    <div id="wxinfo"> </div>
+                                    <div id="wxinfoloading" style="position:absolute;top:230px;left:200px;z-index:99;font:normal 14px arial,helvetica;text-align:center;"> </div>
+                                    <div class="panel-map-sponsor"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /.panel-map-body-lt -->
+                        <div class="panel-map-foot-lt">
+                            <div class="panel-map-foot-rt">
+                                <div class="panel-map-foot"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!--
+                Begin Directions List
+                -->
+                <div class="panel" id="directions-panel">
+                    <div class="panel-head-rt">
+                        <div class="panel-head-lt">
+                            <div class="panel-head"></div>
+                        </div>
+                    </div>
+                    <div class="panel-body-lt">
+                        <div class="panel-body-rt">
+                            <div class="panel-body">
+                                <div class="panel-body-content">
+                                    <div class="panel-title">
+                                        <h3>Step-By-Step Directions</h3>
+                                    </div>
+                                    <div id="directions-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-foot-lt">
+                        <div class="panel-foot-rt">
+                            <div class="panel-foot"></div>
+                        </div>
+                    </div>
+                </div>
+                <!--
+                End Directions List
+                -->
+
+            </div>
+            <!-- /.column-1 -->
+
+
+        </div>
+        <!-- /#content -->
+    </div>
+
+</div>
+<!-- /#wrap -->
+
+<div id="menu-times" class="menu">
+    <div class="menu-head-lt">
+        <div class="menu-head-rt">
+            <div class="menu-head"></div>
+        </div>
+    </div>
+    <div class="menu-body-lt">
+        <div class="menu-body-rt">
+            <div class="menu-body">
+                <ul class="menu-items">
+
+                    <li><a class="lvt">5pm</a></li>
+
+                    <li><a class="lvt">6pm</a></li>
+
+                    <li><a class="lvt">7pm</a></li>
+
+                    <li><a class="lvt">8pm</a></li>
+
+                    <li><a class="lvt">9pm</a></li>
+
+                    <li><a class="lvt">10pm</a></li>
+
+                    <li><a class="lvt">11pm</a></li>
+
+                    <li><a class="lvt">12am</a></li>
+
+                    <li><a class="lvt">1am</a></li>
+
+                    <li><a class="lvt">2am</a></li>
+
+                    <li><a class="lvt">3am</a></li>
+
+                    <li><a class="lvt">4am</a></li>
+
+                    <li><a class="lvt">5am</a></li>
+
+                    <li><a class="lvt">6am</a></li>
+
+                    <li><a class="lvt">7am</a></li>
+
+                    <li><a class="lvt">8am</a></li>
+
+                    <li><a class="lvt">9am</a></li>
+
+                    <li><a class="lvt">10am</a></li>
+
+                    <li><a class="lvt">11am</a></li>
+
+                    <li><a class="lvt">12am</a></li>
+
+                    <li><a class="lvt">1pm</a></li>
+
+                    <li><a class="lvt">2pm</a></li>
+
+                    <li><a class="lvt">3pm</a></li>
+
+                    <li><a class="lvt">4pm</a></li>
+
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="menu-foot-lt">
+        <div class="menu-foot-rt">
+            <div class="menu-foot"></div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

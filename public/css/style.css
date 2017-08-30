@@ -1,0 +1,28 @@
+html, body, #container, #content, #map {
+    width: 100%;
+    height: 100%;
+}
+
+#map {
+    box-shadow: 0 8px 17px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    position: relative;
+}
+
+.section {
+    margin-top: 50px;
+    background: lightblue;
+}
+
+#container {
+    padding-left: 300px;
+}
+
+#content {
+    padding: 20px;
+}
+
+@media only screen and (max-width : 992px) {
+    #container {
+        padding-left: 0px;
+    }
+}
