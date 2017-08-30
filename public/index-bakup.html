@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Driving Directions and Weather - Trip Planner - Weather Along Your Route</title>
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+<div id="container">
+    <div id="menu">
+        <ul id="slide-out" class="side-nav fixed show-on-large-only">
+            <li class="card">
+                <input id="from_address" placeholder="Enter the starting point">
+                <input id="to_address" placeholder="Enter the starting point">
+            </li>
+            <li class="card">
+                <input class="datepicker">
+            </li>
+
+            <li>
+                <div id="directions-list" class="card"></div>
+            </li>
+
+        </ul>
+    </div>
+
+    <div id="content">
+        <div class="fixed-action-btn horizontal" style="bottom: 45px; right: 24px;">
+            <a href="#" data-activates="slide-out"
+               class="button-collapse hide-on-large-only btn-floating btn-large red">
+                <i class="large material-icons">menu</i>
+            </a>
+        </div>
+        <!--<a href="#" data-activates="slide-out" class="button-collapse hide-on-large-only"><i class="material-icons">menu</i></a>-->
+        <div class="col s8 offset-s2" id="map"></div>
+    </div>
+
+</div>
+
+<!-- Minified Jquery -->
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<!-- Compiled and minified JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+<!--Import Google Maps API-->
+<script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?libraries=places&key=AIzaSyDwrHGHKWUjDvdcI5-mLBdqDP9gk1L_XeI"></script>
+<script type="text/javascript" src="javascript/vendor/driving_markers.js"></script>
+<script type="text/javascript" src="javascript/vendor/info_box.js"></script>
+<script type="text/javascript" src="javascript/vendor/moment.min.js"></script>
+<script src="javascript/index.js"></script>
+</body>
+</html>
