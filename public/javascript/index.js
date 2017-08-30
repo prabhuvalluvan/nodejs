@@ -114,7 +114,7 @@ function getDirections(start, end) {
     ib.close();
 
     var currentHour = 17;
-    var departHour = "5pm";
+    var departHour = "10am";
     departHour = departHour.replace("@", "");
     if (departHour.indexOf("am") > -1) {
         departHour = departHour.replace("am","");
