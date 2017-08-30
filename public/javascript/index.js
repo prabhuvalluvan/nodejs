@@ -10,7 +10,6 @@ var rtDuration = 0; //running total of duration
 var markers = new Array();
 
 var ib = new InfoBox();
-var moment = moment;
 
 function getWeather(data) {
     var dataArray = data[0].markers;
@@ -113,24 +112,11 @@ function init() {
 function getDirections(start, end) {
     ib.close();
 
-    var currentHour = 17;
-    var departHour = "10am";
-    departHour = departHour.replace("@", "");
-    if (departHour.indexOf("am") > -1) {
-        departHour = departHour.replace("am","");
-        departHour = parseInt(departHour);
-        if (departHour == 12) { departHour = 0; }        }
-    else {
-        departHour = departHour.replace("pm","");
-        departHour = parseInt(departHour);
-        departHour += 12;
-        if (departHour > 23) { departHour = 12; }
-    }
+    var currentHour = moment().hours();
+    var departHour = $('.timepicker').val() ? moment($('.timepicker').val(), ["h:mmA"]).hours() : 10;
     if (departHour < currentHour) {
         departHour += 24;
     }
-    console.log(departHour)
-
     rtDistance = 0; //running total of distance
     rtDuration = 0; //running total of duration
     document.getElementById("directions-list").innerHTML = "";
@@ -178,6 +164,7 @@ function getDirections(start, end) {
                     if (v > 0) { mURL += "|"; }
                     mURL += (departHour+pathMarkerCount) + "," + roundToDecimal(path[v].lat(), 3) + "," + roundToDecimal(path[v].lng(), 3);
                     pathMarkerCount++;
+                    // console.log(pathMarkerCount)
                     if (pathMarkerCount == hrCutoff) {
                         break;
                     }
@@ -193,24 +180,24 @@ function getDirections(start, end) {
                     timeout: 2000,
                     jsonpCallback: "getWeather",
                     error: function(data) {
-                        alert("Sorry! We are not able to get weather information for the route you selected.");
+                        Materialize.toast('Sorry! We are not able to get weather information for the route you selected.', 3000);
                     },
                     statusCode: {
                         408: function() {
-                            alert('Sorry! The request took took long. Press \"GO\" to try again.');
+                            Materialize.toast('Sorry! The request took took long. Press \"GO\" to try again.', 3000);
                         }
                     }
                 });
                 //alert(mURL);
             }
             else {
-                alert("Sorry! We are not able to get weather information for the route you selected.");
+                Materialize.toast('Sorry! We are not able to get weather information for the route you selected.', 3000);
             }
             return false;
         }
         else
         {
-            alert("Sorry! We are not able to get directions for the destinations you selected.");
+            Materialize.toast('Sorry! We are not able to get weather information for the route you selected.', 3000);
             return false;
         }
         return false;
@@ -247,7 +234,6 @@ to_address.addListener('place_changed', addressChanged);
 function addressChanged() {
     from = from_address.getPlace();
     to = to_address.getPlace();
-
     if(from && to){
         getDirections(from.geometry.location, to.geometry.location)
     }
@@ -260,11 +246,25 @@ $('.button-collapse').sideNav({
     draggable: true // Choose whether you can drag to open on touch screens
 });
 
+$('.timepicker').pickatime({
+    default: 'now'
+});
+$('.timepicker').on('change', function() {
+    addressChanged()
+});
+
 $('.datepicker').pickadate({
     selectMonths: false, // Creates a dropdown to control month
     selectYears: false,
     min: true,
     max: 15,
+    onStart: function() {
+        var date = new Date();
+        this.set('select', [date.getFullYear(), date.getMonth(), date.getDate()])
+    },
+    onClose: function() {
+        addressChanged();
+    },
     today: 'Today',
     clear: 'Clear',
     close: 'Ok',
