@@ -14,12 +14,14 @@
 <div id="container">
     <div id="menu">
         <ul id="slide-out" class="side-nav fixed show-on-large-only">
-            <li>
-                <div class="card">
-                    <input id="from_address" placeholder="Enter the starting point">
-                    <input id="to_address" placeholder="Enter the starting point">
-                </div>
+            <li class="card">
+                <input id="from_address" placeholder="Enter the starting point">
+                <input id="to_address" placeholder="Enter the starting point">
             </li>
+            <li class="card">
+                <input class="datepicker">
+            </li>
+
             <li>
                 <div id="directions-list" class="card"></div>
             </li>
@@ -49,6 +51,7 @@
         src="https://maps.googleapis.com/maps/api/js?libraries=places&key=AIzaSyDwrHGHKWUjDvdcI5-mLBdqDP9gk1L_XeI"></script>
 <script type="text/javascript" src="javascript/vendor/driving_markers.js"></script>
 <script type="text/javascript" src="javascript/vendor/info_box.js"></script>
+<script type="text/javascript" src="javascript/vendor/moment.min.js"></script>
 <script src="javascript/index.js"></script>
 </body>
 </html>

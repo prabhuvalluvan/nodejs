@@ -10,6 +10,7 @@ var rtDuration = 0; //running total of duration
 var markers = new Array();
 
 var ib = new InfoBox();
+var moment = moment;
 
 function getWeather(data) {
     var dataArray = data[0].markers;
@@ -128,6 +129,7 @@ function getDirections(start, end) {
     if (departHour < currentHour) {
         departHour += 24;
     }
+    console.log(departHour)
 
     rtDistance = 0; //running total of distance
     rtDuration = 0; //running total of duration
@@ -256,6 +258,17 @@ $('.button-collapse').sideNav({
     edge: 'left', // Choose the horizontal origin
     closeOnClick: false, // Closes side-nav on <a> clicks, useful for Angular/Meteor
     draggable: true // Choose whether you can drag to open on touch screens
+});
+
+$('.datepicker').pickadate({
+    selectMonths: false, // Creates a dropdown to control month
+    selectYears: false,
+    min: true,
+    max: 15,
+    today: 'Today',
+    clear: 'Clear',
+    close: 'Ok',
+    closeOnSelect: false // Close upon selecting a date,
 });
 
 // When the window has finished loading create our google map below
